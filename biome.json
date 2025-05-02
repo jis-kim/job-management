@@ -1,0 +1,62 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "formatter": {
+    "enabled": true,
+    "useEditorconfig": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120,
+    "lineEnding": "lf",
+    "ignore": ["node_modules", "dist", "build", "coverage", "*.lock", "package.json"]
+  },
+  "javascript": {
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    },
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "all",
+      "semicolons": "always"
+    }
+  },
+  "organizeImports": {
+    "enabled": true
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "complexity": {
+        "noStaticOnlyClass": "off"
+      },
+      "correctness": {
+        "noUnusedVariables": "error",
+        "useArrayLiterals": "off",
+        "noUnusedImports": "error"
+      },
+      "style": {
+        "useAsConstAssertion": "error",
+        "useBlockStatements": "off",
+        "useImportType": "off",
+        "noArguments": "error",
+        "noVar": "error",
+        "useConst": "error",
+        "noInferrableTypes": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noExtraNonNullAssertion": "error",
+        "noMisleadingInstantiator": "error",
+        "noUnsafeDeclarationMerging": "error",
+        "useNamespaceKeyword": "error",
+        "noConsoleLog": "warn"
+      }
+    },
+    "ignore": ["**/*spec.ts", "node_modules", "dist", "build", "coverage", "*.lock"]
+  }
+}
