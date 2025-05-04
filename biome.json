@@ -12,7 +12,7 @@
     "indentWidth": 2,
     "lineWidth": 120,
     "lineEnding": "lf",
-    "ignore": ["node_modules", "dist", "build", "coverage", "*.lock", "package.json"]
+    "ignore": ["node_modules", "dist", "build", "coverage", "*.lock", "package.json", "db"]
   },
   "javascript": {
     "parser": {
@@ -57,6 +57,6 @@
         "noConsoleLog": "warn"
       }
     },
-    "ignore": ["**/*spec.ts", "node_modules", "dist", "build", "coverage", "*.lock"]
+    "ignore": ["**/*spec.ts", "node_modules", "dist", "build", "coverage", "*.lock", "db"]
   }
 }
