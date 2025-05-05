@@ -3,7 +3,7 @@ import { v4 } from 'uuid';
 import { Job, JobStatus } from '../src/entity/job.entity';
 import { JobsRepository } from '../src/jobs/jobs.repository';
 
-const jobFactory: () => Job = () => {
+export const jobFactory: () => Job = () => {
   return {
     id: v4(),
     title: faker.lorem.sentence(),
@@ -15,7 +15,7 @@ const jobFactory: () => Job = () => {
 };
 
 const seed = async () => {
-  const jobsRepository = new JobsRepository();
+  const jobsRepository = new JobsRepository('jobs.json');
   await jobsRepository.saveMany(Array.from({ length: 10 }, jobFactory));
 };
 

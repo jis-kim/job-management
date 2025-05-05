@@ -1,22 +1,30 @@
-import { JobStatus } from '@/entity/job.entity';
-import { JobsRepository } from '@/jobs/jobs.repository';
+import { LoggingInterceptor } from '@/common/interceptor/logging.interceptor';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { SwaggerModule } from '@nestjs/swagger';
+import { DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
+  app.useGlobalInterceptors(new LoggingInterceptor(new Logger()));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
-  const jobsRepository = new JobsRepository();
-  jobsRepository.save({
-    id: '1',
-    title: 'Job 1',
-    description: 'Job 1 description',
-    status: JobStatus.PENDING,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-  const jobs = await jobsRepository.findAll();
-  console.log(jobs);
+  const config = new DocumentBuilder()
+    .setTitle('Job Service')
+    .setDescription('Job Service API')
+    .setVersion('1.0')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
+  await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
