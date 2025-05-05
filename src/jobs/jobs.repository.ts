@@ -1,17 +1,17 @@
 import { Job } from '@/entity/job.entity';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Config, JsonDB } from 'node-json-db';
 
-const DB_NAME = 'jobs';
+export const JOBS_DB_NAME = 'JOBS_DB_NAME';
 
 // CRUD 일어날 때 마다 파일 전체를 다시 쓴다.
 @Injectable()
 export class JobsRepository {
   private db: JsonDB;
-  //public db: JsonDB;
 
-  constructor() {
-    this.db = new JsonDB(new Config(DB_NAME, true, true, '/'));
+  // filename 동적으로 설정
+  constructor(@Inject(JOBS_DB_NAME) private readonly dbName: string) {
+    this.db = new JsonDB(new Config(dbName, true, true, '/'));
   }
 
   async findAll(): Promise<Job[]> {
@@ -19,7 +19,13 @@ export class JobsRepository {
   }
 
   // TODO: 추후 push/save 분리 고려
+  /**
+   * 데이터 저장
+   * @param job 저장할 데이터
+   * @returns void
+   */
   async save(job: Job): Promise<void> {
+    // append
     return this.db.push('/jobs[]', job);
   }
 
