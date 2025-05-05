@@ -4,7 +4,7 @@ import { Job } from '../src/entity/job.entity';
 import { JobsRepository } from '../src/jobs/jobs.repository';
 import { jobFactory } from './seed';
 const test = async () => {
-  const jobsRepository = new JobsRepository();
+  const jobsRepository = new JobsRepository('test.json');
 
   const db = new JsonDB(new Config('test.json', true, true, '/'));
 
