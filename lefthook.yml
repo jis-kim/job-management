@@ -7,7 +7,7 @@ pre-commit:
     test:
       run: echo "🧪 Running Tests..." && npm run test
 
-#pre-push:
-#  commands:
-#    e2e-test:
-#      run: echo "🧪 Running E2E Tests..." && pnpm run test:e2e
+pre-push:
+  commands:
+    e2e-test:
+      run: echo "🧪 Running E2E Tests..." && pnpm run test:e2e
