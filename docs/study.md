@@ -158,3 +158,56 @@ db.filter(path, callback);
 ```
 
 - 콜백 함수를 이용해 필터링
+
+#### Error
+
+DataError (데이터 관련 에러)
+| 에러 메시지 | 발생 상황 |
+|-------------|-----------|
+| The Data Path can't be empty | 데이터 경로(DataPath)가 비어 있을 때. (최소한 루트 구분자 /는 있어야 함) |
+| Can't find dataPath: /XXX. Stopped at YYY | 지정한 DataPath의 전체 계층이 DB에 존재하지 않을 때. (getData, delete 등에서 경로가 없을 때) |
+| Can't merge another type of data with an Array | 현재 데이터가 배열이 아닌데, 배열 데이터를 병합(push)하려고 할 때. |
+| Can't merge an Array with an Object | 현재 데이터가 배열인데, 객체 데이터를 병합(push)하려고 할 때. |
+| DataPath: /XXX. YYY is not an array. | 배열이어야 할 경로에 배열이 아닌 데이터가 있을 때. |
+| DataPath: /XXX. Can't find index INDEX in array YYY | 배열에서 존재하지 않는 인덱스에 접근하려고 할 때. |
+| Only numerical values accepted for array index | 배열 인덱스에 숫자가 아닌 값을 사용하려고 할 때. |
+| The entry at the path (/XXX) needs to be either an Object or an Array | find 메서드 사용 시, rootPath가 객체나 배열이 아닐 때. |
+
+
+DatabaseError (DB 파일 관련 에러)
+| 에러 메시지 | 발생 상황 |
+|-------------|-----------|
+| Can't Load Database: XXXX | DB 파일을 불러오는 데 실패했을 때. (내부 에러는 error.inner에 있음) |
+| Can't save the database: XXX | DB 파일 저장에 실패했을 때. (내부 에러는 error.inner에 있음) |
+| DataBase not loaded. Can't write | DB가 제대로 로드되지 않아, 데이터 저장을 막을 때. (기존 DB 손상 방지 목적) |
+
+
+### Exception filter 실행 순서
+- `useGlobalFilters`에 필터 두 개를 등록
+- 필터 두 개를 등록한 경우 뒤에서부터 실행
+
+원하는 것 : `DataBaseError`, `DataError` 발생 시 `JsonDBExceptionFilter` 실행
+
+1. AllExceptionFilter, JsonDBExceptionFilter 순으로 등록했을 때
+
+```ts
+app.useGlobalFilters(new AllExceptionFilter(httpAdapter), new JsonDBExceptionFilter());
+```
+- JsonDBExceptionFilter 실행
+
+![image](./images/exception-filter-1.png)
+
+
+2. JsonDBExceptionFilter, AllExceptionFilter 순으로 등록했을 때
+
+```ts
+app.useGlobalFilters(new JsonDBExceptionFilter(), new AllExceptionFilter(httpAdapter));
+```
+
+- AllExceptionFilter 실행
+
+![image](./images/exception-filter-2.png)
+
+
+
+
