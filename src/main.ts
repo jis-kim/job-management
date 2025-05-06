@@ -1,8 +1,11 @@
-import { LoggingInterceptor } from '@/common/interceptor/logging.interceptor';
 import { Logger, ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { SwaggerModule } from '@nestjs/swagger';
 import { DocumentBuilder } from '@nestjs/swagger';
+
+import { AllExceptionFilter } from '@/common/filter/all-exception.filter';
+import { JsonDBExceptionFilter } from '@/common/filter/json-db-exception.filter';
+import { LoggingInterceptor } from '@/common/interceptor/logging.interceptor';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -15,6 +18,9 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  const { httpAdapter } = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new AllExceptionFilter(httpAdapter), new JsonDBExceptionFilter());
 
   const config = new DocumentBuilder()
     .setTitle('Job Service')
