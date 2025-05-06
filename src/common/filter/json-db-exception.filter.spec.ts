@@ -40,7 +40,7 @@ describe('JsonDbExceptionFilter', () => {
     filter.catch(new DataError('Cant find dataPath: /no', 3, undefined), host as ArgumentsHost);
     expect(mockStatus).toHaveBeenCalledWith(500);
     expect(mockJson).toHaveBeenCalledWith({
-      error: 'Internal Server Error',
+      error: 'INTERNAL_SERVER_ERROR',
       message: 'Database Error',
     });
   });
@@ -53,7 +53,7 @@ describe('JsonDbExceptionFilter', () => {
 
     expect(mockStatus).toHaveBeenCalledWith(500);
     expect(mockJson).toHaveBeenCalledWith({
-      error: 'Internal Server Error',
+      error: 'INTERNAL_SERVER_ERROR',
       message: 'Database Error',
     });
   });

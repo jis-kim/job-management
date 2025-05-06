@@ -3,7 +3,7 @@ import { BaseExceptionFilter } from '@nestjs/core';
 import { Request, Response } from 'express';
 import { DataError, DatabaseError } from 'node-json-db';
 
-function formatError(error: Error & { id?: number; inner?: Error }) {
+function formatError(error: DataError | DatabaseError) {
   return {
     name: error.name,
     message: error.message,
@@ -39,7 +39,6 @@ export class JsonDBExceptionFilter extends BaseExceptionFilter {
 
     const errorInfo = formatError(exception as any);
 
-    // 항상 전체 에러 정보 로그
     const logInfo = {
       ...errorInfo,
       path: request?.url,
@@ -47,9 +46,8 @@ export class JsonDBExceptionFilter extends BaseExceptionFilter {
     };
     Logger.error(JSON.stringify(logInfo));
 
-    // 클라이언트에는 name, message, id만 전달
     response.status(500).json({
-      error: 'Internal Server Error',
+      error: 'INTERNAL_SERVER_ERROR',
       message: 'Database Error',
     });
   }
