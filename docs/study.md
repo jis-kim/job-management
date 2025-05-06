@@ -159,7 +159,7 @@ db.filter(path, callback);
 
 - 콜백 함수를 이용해 필터링
 
-## Error
+#### Error
 
 DataError (데이터 관련 에러)
 | 에러 메시지 | 발생 상황 |
@@ -180,3 +180,34 @@ DatabaseError (DB 파일 관련 에러)
 | Can't Load Database: XXXX | DB 파일을 불러오는 데 실패했을 때. (내부 에러는 error.inner에 있음) |
 | Can't save the database: XXX | DB 파일 저장에 실패했을 때. (내부 에러는 error.inner에 있음) |
 | DataBase not loaded. Can't write | DB가 제대로 로드되지 않아, 데이터 저장을 막을 때. (기존 DB 손상 방지 목적) |
+
+
+### Exception filter 실행 순서
+- `useGlobalFilters`에 필터 두 개를 등록
+- 필터 두 개를 등록한 경우 뒤에서부터 실행
+
+원하는 것 : `DataBaseError`, `DataError` 발생 시 `JsonDBExceptionFilter` 실행
+
+1. AllExceptionFilter, JsonDBExceptionFilter 순으로 등록했을 때
+
+```ts
+app.useGlobalFilters(new AllExceptionFilter(httpAdapter), new JsonDBExceptionFilter());
+```
+- JsonDBExceptionFilter 실행
+
+![image](./images/exception-filter-1.png)
+
+
+2. JsonDBExceptionFilter, AllExceptionFilter 순으로 등록했을 때
+
+```ts
+app.useGlobalFilters(new JsonDBExceptionFilter(), new AllExceptionFilter(httpAdapter));
+```
+
+- AllExceptionFilter 실행
+
+![image](./images/exception-filter-2.png)
+
+
+
+
