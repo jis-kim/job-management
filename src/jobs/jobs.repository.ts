@@ -12,10 +12,19 @@ export class JobsRepository {
   // filename 동적으로 설정
   constructor(@Inject(JOBS_DB_NAME) private readonly dbName: string) {
     this.db = new JsonDB(new Config(dbName, true, true, '/'));
+    this.db.load(); // 파일 로드
   }
 
   async findAll(): Promise<Job[]> {
     return this.db.getData('/jobs');
+  }
+
+  async findById(id: string): Promise<Job | null> {
+    const index = await this.getIndex('id', id);
+    if (index === -1) {
+      return null;
+    }
+    return this.db.getData(`/jobs[${index}]`);
   }
 
   // TODO: 추후 push/save 분리 고려
