@@ -113,7 +113,7 @@ await db.push("/arraytest/myarray[0]", {
 // testString = 'test';
 var testString = await db.getData("/arraytest/myarray[0]/obj");
 ```
-- 배열 element삭제해도 배열 자체가 사라지진않음.
+- 배열 element삭제해도 배열 자체가 사라지진 않음.
 
 
 - 추가 시 [] 사용
@@ -211,7 +211,7 @@ app.useGlobalFilters(new JsonDBExceptionFilter(), new AllExceptionFilter(httpAda
 
 
 
-### select를 빠르지
+### select를 빠르게
 
 - node-json-db에서는 `getData`가 처음 이루어질 때 `load()`를 명시적으로 호출함
 - 이걸 repository의 constructor에서 호출해서 GET API가 처음 호출될 때의 API 지연을 방지
@@ -231,3 +231,38 @@ app.useGlobalFilters(new JsonDBExceptionFilter(), new AllExceptionFilter(httpAda
 ```
 
 ![image](./images/getById-without-load.png)
+
+### insert를 빠르게 (update를 빠르게)
+- push / save를 나눠서 하는 전략
+- 100000 개 레코드에 job append
+
+#### Before
+
+![image](./images/create-before-tuning.png)
+
+- save on push option true
+- 500~600ms
+
+#### After
+
+![image](./images/create-after-tuning.png)
+
+- push 후 save는 await 안하고 비동기처리
+- 250~300ms
+- 시간 50% 감소
+
+
+#### OOM을 겪다..
+
+![image](./images/oom.png)
+
+- k6로 부하테스트 하다가 발생
+- 메모리 증가량이 POST 하나마다 파일 용량만큼 증가
+![image](./images/memory-log.png)
+- 터지는 순간 logs.json 파일이 사라짐
+
+
+#### 이유 - fs.open(path, flags, mode)
+
+- 'w': Open file for writing. The file is created (if it does not exist) or truncated (if it exists).
+- 파일 쓰기 모드는 기본적으로 truncated 되므로 문제가 생겼을 때 파일이 날아가버린다..
