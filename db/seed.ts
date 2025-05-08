@@ -8,7 +8,7 @@ export const jobFactory: () => Job = () => {
     id: v4(),
     title: faker.lorem.sentence(),
     description: faker.lorem.paragraph(),
-    status: JobStatus.PENDING,
+    status: faker.helpers.arrayElement(Object.values(JobStatus)),
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -16,7 +16,7 @@ export const jobFactory: () => Job = () => {
 
 const seed = async () => {
   const jobsRepository = new JobsRepository('jobs.json');
-  await jobsRepository.saveMany(Array.from({ length: 10 }, jobFactory));
+  await jobsRepository.pushMany(Array.from({ length: 10000 }, jobFactory));
 };
 
 seed();

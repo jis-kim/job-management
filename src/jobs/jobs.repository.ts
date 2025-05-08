@@ -7,46 +7,55 @@ export const JOBS_DB_NAME = 'JOBS_DB_NAME';
 // CRUD 일어날 때 마다 파일 전체를 다시 쓴다.
 @Injectable()
 export class JobsRepository {
-  private db: JsonDB;
+  public db: JsonDB;
 
   // filename 동적으로 설정
   constructor(@Inject(JOBS_DB_NAME) private readonly dbName: string) {
-    this.db = new JsonDB(new Config(dbName, true, true, '/'));
+    this.db = new JsonDB(new Config(dbName, false, true, '/'));
+    this.db.load(); // 파일 로드
   }
 
   async findAll(): Promise<Job[]> {
     return this.db.getData('/jobs');
   }
 
-  // TODO: 추후 push/save 분리 고려
+  async findById(id: string): Promise<Job | null> {
+    const index = await this.getIndex('id', id);
+    if (index === -1) {
+      return null;
+    }
+    return this.db.getData(`/jobs[${index}]`);
+  }
+
   /**
    * 데이터 저장
+   * push/save를 분리하여 실제 파일에 save하는 시간 감소
    * @param job 저장할 데이터
    * @returns void
    */
-  async save(job: Job): Promise<void> {
+  async push(job: Job): Promise<void> {
     // append
-    return this.db.push('/jobs[]', job);
+    await this.db.push('/jobs[]', job);
+    this.db.save(); // async
   }
 
   /**
    * 배열 형태로 데이터 저장 (initialize)
    * @param jobs
    */
-  async saveMany(jobs: Job[]): Promise<void> {
-    this.db.push('/jobs', jobs);
+  async pushMany(jobs: Job[]): Promise<void> {
+    await this.db.push('/jobs', jobs);
+    this.db.save();
   }
 
   async delete(id: string): Promise<void> {
-    this.db.delete(`/jobs/${id}`);
+    await this.db.delete(`/jobs/${id}`);
+    this.db.save();
   }
 
-  async count(): Promise<number> {
-    return this.db.count('/jobs');
-  }
-
-  async search(key: keyof Job, value: string): Promise<Job[]> {
-    return this.db.getData(`/jobs[${await this.getIndex(key, value)}]`);
+  async update(id: string, job: Job): Promise<void> {
+    await this.db.push(`/jobs/${id}`, job);
+    this.db.save();
   }
 
   /**
@@ -55,8 +64,12 @@ export class JobsRepository {
    * @param value
    * @returns
    */
-  async filter(key: keyof Job, value: string): Promise<Job[] | undefined> {
-    return this.db.filter('/jobs', (job: Job) => job[key] === value);
+  async filter(key: keyof Job, value: string): Promise<Job[]> {
+    const result = await this.db.filter('/jobs', (job: Job) => job[key] === value);
+    if (!result || result.length === 0) {
+      return [];
+    }
+    return result as Job[];
   }
 
   /**
