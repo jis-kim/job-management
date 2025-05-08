@@ -19,26 +19,27 @@ export class AllExceptionFilter extends BaseExceptionFilter {
     const request = ctx.getRequest<Request>();
     const status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
+    // exception의 세부 정보를 로깅
+    const errorJson = {
+      name: exception instanceof Error ? exception.name : 'UnknownError',
+      message: exception instanceof Error ? exception.message : 'Internal server error', // exception이 Error인 경우만 접근
+    };
+
+    //set clientMessage (response body)
     let clientMessage = 'Internal server error';
     if (exception instanceof HttpException && status !== HttpStatus.INTERNAL_SERVER_ERROR) {
       clientMessage = (exception.getResponse() as HttpException).message;
-      if (typeof clientMessage === 'object') {
+      if (Array.isArray(clientMessage)) {
         // 에러 메시지가 객체인 경우 - validation pipe에서 발생하는 에러
         clientMessage = Object.values(clientMessage)[0] as string;
+        errorJson.message = clientMessage;
       }
     }
-
-    // exception의 세부 정보를 로깅
-    const errorJson = {
-      message: exception instanceof Error ? exception.message : 'Internal server error', // exception이 Error인 경우만 접근
-      name: exception instanceof Error ? exception.name : 'UnknownError',
-    };
 
     const headers = this.maskSensitiveFields(request.headers);
     const query = request.query;
     const params = request.params;
     const body = this.maskSensitiveFields(request.body);
-
     const userAgent = request.get('user-agent');
 
     const requestInfo = {
