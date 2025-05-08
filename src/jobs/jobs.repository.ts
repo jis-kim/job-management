@@ -36,7 +36,7 @@ export class JobsRepository {
   async push(job: Job): Promise<void> {
     // append
     await this.db.push('/jobs[]', job);
-    this.db.save(); // not async
+    this.db.save(); // async
   }
 
   /**
@@ -67,7 +67,7 @@ export class JobsRepository {
   async filter(key: keyof Job, value: string): Promise<Job[]> {
     const result = await this.db.filter('/jobs', (job: Job) => job[key] === value);
     if (!result || result.length === 0) {
-      return [] as Job[];
+      return [];
     }
     return result as Job[];
   }

@@ -39,6 +39,21 @@ npm run start
 }
 ```
 
+### GET /jobs
+
+- 모든 작업을 조회합니다.
+
+### GET /jobs/:id
+
+- 특정 작업을 조회합니다.
+
+### GET /jobs/search
+
+- 작업을 검색합니다.
+- Query Parameter로 검색 조건을 지정할 수 있습니다.
+  - "title": job의 제목
+  - "status": job의 상태 (pending, processing, completed, failed)
+
 
 
 ## 기타

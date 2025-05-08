@@ -16,7 +16,7 @@ export const jobFactory: () => Job = () => {
 
 const seed = async () => {
   const jobsRepository = new JobsRepository('jobs.json');
-  await jobsRepository.pushMany(Array.from({ length: 100000 }, jobFactory));
+  await jobsRepository.pushMany(Array.from({ length: 10000 }, jobFactory));
 };
 
 seed();

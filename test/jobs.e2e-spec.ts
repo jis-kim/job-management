@@ -82,4 +82,21 @@ describe('Jobs API 통합 테스트', () => {
       await request(app.getHttpServer()).post('/jobs').send(badDto).expect(400);
     });
   });
+
+  describe('GET /jobs/:id', () => {
+    it('정상적으로 job 조회', async () => {
+      const job = await request(app.getHttpServer()).post('/jobs').send({
+        title: 'test job',
+        description: 'test description',
+      });
+
+      const response = await request(app.getHttpServer()).get(`/jobs/${job.body.id}`).expect(200);
+      expect(response.body.id).toBe(job.body.id);
+      expect(response.body.title).toBe(job.body.title);
+      expect(response.body.description).toBe(job.body.description);
+      expect(response.body.status).toBe(job.body.status);
+      expect(response.body.createdAt).toBe(job.body.createdAt);
+      expect(response.body.updatedAt).toBe(job.body.updatedAt);
+    });
+  });
 });
