@@ -211,3 +211,23 @@ app.useGlobalFilters(new JsonDBExceptionFilter(), new AllExceptionFilter(httpAda
 
 
 
+### select를 빠르지
+
+- node-json-db에서는 `getData`가 처음 이루어질 때 `load()`를 명시적으로 호출함
+- 이걸 repository의 constructor에서 호출해서 GET API가 처음 호출될 때의 API 지연을 방지
+
+#### Before, 100000개 레코드 중 특정 id select
+
+```bash
+[Nest] 59852  - 05/08/2025, 12:17:43 AM     LOG GET /jobs/7e86c426-a3c3-4c22-a532-a3984fb1dba2 200 +547ms
+```
+
+![image](./images/getById-with-load.png)
+
+#### After
+
+```bash
+[Nest] 61043  - 05/08/2025, 12:18:32 AM     LOG GET /jobs/7e86c426-a3c3-4c22-a532-a3984fb1dba2 200 +12ms
+```
+
+![image](./images/getById-without-load.png)
