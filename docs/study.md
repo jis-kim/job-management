@@ -233,17 +233,28 @@ app.useGlobalFilters(new JsonDBExceptionFilter(), new AllExceptionFilter(httpAda
 ![image](./images/getById-without-load.png)
 
 ### insert를 빠르게 (update를 빠르게)
-- push / save를 나눠서 하는 전략
-- 100000 개 레코드에 job append
 
-#### Before
+- 처음엔 push/save를 나눠서 push만 await 처리, save는 await 하지 않고 비동기 처리.
+- 라이브러리 코드를 살펴보니 동시성 테스트가 있어서, push와 save 모두 비동기처리 하는 방법 고안.
+
+- k6 부하테스트로 (test/jobs-stress-test.js) 실험
+
+(공통 조건)
+- 10000개의 베이스 레코드, 10개의 가상유저가 0.01초 간격으로 10초동안 요청
+- 1. POST,  2. POST한 job의 title으로 GET(search) 요청
+
+
+#### 1. push / save를 나눠서 하는 전략
+- 100000 개 레코드에 job 하나 append
+
+##### Before
 
 ![image](./images/create-before-tuning.png)
 
 - save on push option true
 - 500~600ms
 
-#### After
+##### After
 
 ![image](./images/create-after-tuning.png)
 
@@ -251,6 +262,110 @@ app.useGlobalFilters(new JsonDBExceptionFilter(), new AllExceptionFilter(httpAda
 - 250~300ms
 - 시간 50% 감소
 
+##### k6로 올바른 data가 오는지, save를 나중에 처리해도 get job하는 데엔 문제 없는지 확인
+- post -> search?title= 으로 확인.
+
+```bash
+ █ TOTAL RESULTS
+
+    CUSTOM
+    get_duration............................................................: avg=130.488125 min=3.21     med=114.614  max=504.247  p(90)=247.5044 p(95)=287.6748
+    post_duration...........................................................: avg=150.592939 min=22.841   med=139.83   max=494.806  p(90)=254.1046 p(95)=287.163
+
+    HTTP
+    http_req_duration.......................................................: avg=140.54ms   min=3.21ms   med=129.11ms max=504.24ms p(90)=251.76ms p(95)=287.58ms
+      { expected_response:true }............................................: avg=140.54ms   min=3.21ms   med=129.11ms max=504.24ms p(90)=251.76ms p(95)=287.58ms
+    http_req_failed.........................................................: 0.00%  0 out of 1570
+    http_reqs...............................................................: 1570   52.316409/s
+
+    EXECUTION
+    iteration_duration......................................................: avg=382.2ms    min=148.86ms med=381.19ms max=675.9ms  p(90)=481.03ms p(95)=590.11ms
+    iterations..............................................................: 785    26.158204/s
+    vus.....................................................................: 10     min=10        max=10
+    vus_max.................................................................: 10     min=10        max=10
+
+    NETWORK
+    data_received...........................................................: 681 kB 23 kB/s
+    data_sent...............................................................: 234 kB 7.8 kB/s
+```
+
+- 10000개 레코드에 push, 실패율 0%로 성공적.
+- POST 의 p95 287ms.
+- GET 의 p95 287ms.
+
+
+#### 2. push도 비동기로 처리
+
+- node-json-db에서 push / getData에 동시성 문제가 발생하지 않음을 보장함.
+- push하고 getData를 바로 해도 data를 가져올 수 있음.
+
+[https://github.com/Belphemur/node-json-db/blob/master/test/06-concurrency.test.ts](https://github.com/Belphemur/node-json-db/blob/master/test/06-concurrency.test.ts)
+
+```ts
+describe('Multi getData', () => {
+    test('should be blocking and wait for push to finish', async () => {
+        const db = new JsonDB(new Config('test-concurrent-read'));
+        let counter = 1;
+        let record = {
+            strval: `value ${counter}`,
+            intval: counter
+        };
+        //We don't await the promise directly, to trigger a concurrent case
+        const pushPromise = db.push(`/test/key${counter}`, record, false);
+        const data = await db.getData("/test")
+
+        await pushPromise;
+
+        expect(data).toHaveProperty(`key${counter}`)
+        expect(data[`key${counter}`]).toEqual(record);
+    });
+});
+```
+
+- service 코드 변경
+
+```ts
+async createJob(createJobDto: CreateJobDto) {
+    const job = Job.fromDto(createJobDto);
+    this.jobsRepository.push(job);
+    return job;
+}
+```
+
+```bash
+
+  █ TOTAL RESULTS
+
+    CUSTOM
+    get_duration............................................................: avg=118.299269 min=2.266    med=107.427  max=396.768  p(90)=229.0826 p(95)=253.1403
+    post_duration...........................................................: avg=140.54789  min=21.591   med=134.37   max=477.422  p(90)=236.5036 p(95)=262.8043
+
+    HTTP
+    http_req_duration.......................................................: avg=129.42ms   min=2.26ms   med=121.87ms max=477.42ms p(90)=232.72ms p(95)=257.04ms
+      { expected_response:true }............................................: avg=129.42ms   min=2.26ms   med=121.87ms max=477.42ms p(90)=232.72ms p(95)=257.04ms
+    http_req_failed.........................................................: 0.00%  0 out of 1678
+    http_reqs...............................................................: 1678   55.593614/s
+
+    EXECUTION
+    iteration_duration......................................................: avg=359.68ms   min=146.74ms med=363.33ms max=771.2ms  p(90)=447.65ms p(95)=482.36ms
+    iterations..............................................................: 839    27.796807/s
+    vus.....................................................................: 10     min=10        max=10
+    vus_max.................................................................: 10     min=10        max=10
+
+    NETWORK
+    data_received...........................................................: 727 kB 24 kB/s
+    data_sent...............................................................: 250 kB 8.3 kB/s
+
+```
+
+- POST 의 p95 262ms.
+- GET 의 p95 257ms.
+
+- 성공률은 100%.
+- 평균 응답시간, p95, max 모두 줄어들었음.
+
+- 하지만 push가 실패했을 경우에도 무조건 success 응답이 가는 등 데이터 무결성을 보장할 수 없음. (기각)
+- save의 실패는 어떻게 처리하지
 
 #### OOM을 겪다..
 
@@ -258,11 +373,15 @@ app.useGlobalFilters(new JsonDBExceptionFilter(), new AllExceptionFilter(httpAda
 
 - k6로 부하테스트 하다가 발생
 - 메모리 증가량이 POST 하나마다 파일 용량만큼 증가
+
 ![image](./images/memory-log.png)
+
+- 원래 하려던 POST 후 GET 했을 때 요구사항이 잘 반영되냐? 는 ok
+
 - 터지는 순간 logs.json 파일이 사라짐
 
 
-#### 이유 - fs.open(path, flags, mode)
+##### 이유 - fs.open(path, flags, mode)
 
 - 'w': Open file for writing. The file is created (if it does not exist) or truncated (if it exists).
 - 파일 쓰기 모드는 기본적으로 truncated 되므로 문제가 생겼을 때 파일이 날아가버린다..
