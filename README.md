@@ -8,7 +8,7 @@
 
 ```bash
 npm install
-# npm run seed # 필요한 경우, 1000개의 데이터가 생성됩니다. length 조절로 원하는 길이의 job을 생성할 수 있습니다.
+# npm run seed ${length} # 필요한 경우, 1000개의 데이터가 생성됩니다. length 조절로 원하는 길이의 job을 생성할 수 있습니다.
 npm run build
 node dist/main.js #혹은 npm run start
 ```
