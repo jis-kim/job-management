@@ -161,7 +161,7 @@ curl -X GET 'http://localhost:3000/jobs/search?title=string&status=pending&offse
     }
   ]
 }
-
+```
 
 ## 구현 세부사항
 
