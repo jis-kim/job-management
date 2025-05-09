@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron, CronExpression, Interval } from '@nestjs/schedule';
 
 import { JobIdExistsError } from '@/common/error/job-id-exists-error';
 import { chunkArray } from '@/common/util/chunk-array.util';
@@ -29,7 +29,6 @@ export class JobsService {
     const job = Job.fromDto(createJobDto);
     try {
       await this.jobsRepository.push(job);
-      this.jobsRepository.save();
     } catch (error) {
       if (error instanceof JobIdExistsError) {
         this.logger.error('uuid conflict');
@@ -91,5 +90,13 @@ export class JobsService {
 
     await this.jobsRepository.save(); // 명시적 save
     this.logger.log(`All jobs are completed(with index map) : ${pendingJobs.length}  +${Date.now() - allStart}ms`);
+  }
+
+  @Interval(1000)
+  async saveJobs() {
+    const result = await this.jobsRepository.save();
+    if (result) {
+      this.logger.log('Jobs saved');
+    }
   }
 }

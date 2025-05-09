@@ -12,12 +12,14 @@ export class JobsRepository {
   // js map은 hashmap이라서 조회가 O(1)
   // (key: id, value: index)
   private jobIndexMap: Map<string, number> = new Map();
+  private dirty: boolean; // 데이터 변경 여부, save 호출.
 
   // filename 동적으로 설정
   constructor(@Inject(JOBS_DB_NAME) private readonly dbName: string) {
     this.db = new JsonDB(new Config(dbName, false, true, '/'));
     this.db.load(); // 파일 로드
     this.buildIndexMap();
+    this.dirty = false;
   }
 
   private async buildIndexMap() {
@@ -28,8 +30,15 @@ export class JobsRepository {
     });
   }
 
-  async save(): Promise<void> {
-    return this.db.save();
+  /**
+   * "dirty == true"인 경우에만 실제 save를 호출.
+   * @returns
+   */
+  async save(): Promise<boolean> {
+    if (!this.dirty) return false;
+    await this.db.save();
+    this.dirty = false;
+    return true;
   }
 
   async findAll(): Promise<Job[]> {
@@ -65,6 +74,7 @@ export class JobsRepository {
       throw new Error(`Job with id ${job.id} already exists`);
     }
     await this.db.push('/jobs[]', job);
+    this.dirty = true;
     // jobs 배열의 길이를 구해서 마지막 인덱스에 추가된 것으로 처리
     const jobs = await this.findAll();
     this.jobIndexMap.set(job.id, jobs.length - 1);
@@ -77,6 +87,7 @@ export class JobsRepository {
    */
   async pushMany(jobs: Job[]): Promise<void> {
     await this.db.push('/jobs', jobs);
+    this.dirty = true;
     await this.buildIndexMap(); // 전체 초기화 시에만 전체 빌드
   }
 
@@ -104,6 +115,7 @@ export class JobsRepository {
       throw new Error(`Job with id ${id} not found`);
     }
     await this.db.push(`/jobs[${index}]`, job);
+    this.dirty = true;
   }
 
   /**

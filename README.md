@@ -8,8 +8,9 @@
 
 ```bash
 npm install
+# npm run build (필요 시 실행)
 npm run build
-npm run start
+node dist/main.js
 ```
 
 ## API 명세
@@ -18,6 +19,11 @@ npm run start
 
 - 새로운 작업을 생성합니다.
 
+```bash
+curl -X POST 'http://localhost:3000/jobs' -H 'Content-Type: application/json' -d '{"title": "string", "description": "string"}'
+```
+
+#### Request
 ```json
 {
   "title": "string",
@@ -25,7 +31,7 @@ npm run start
 }
 ```
 
-- 응답 (생성된 Job)
+#### Response (생성된 Job)
 
 ```json
 {
@@ -41,10 +47,35 @@ npm run start
 ### GET /jobs
 
 - 모든 작업을 조회합니다.
+- pagination을 지원합니다. (offset 기반)
 
 ### GET /jobs/:id
 
-- 특정 작업을 조회합니다.
+- id값으로 특정 작업을 조회합니다.
+
+#### Request
+
+```bash
+curl -X GET 'http://localhost:3000/jobs/${uuid형식의 id}'
+```
+
+#### Response
+
+```json
+{
+  "id": "string",
+  "title": "string",
+  "description": "string",
+  "status": "pending",
+  "createdAt": "2025-05-05T00:00:00.000Z",
+  "updatedAt": "2025-05-05T00:00:00.000Z"
+}
+```
+
+
+
+
+
 
 ### GET /jobs/search
 
@@ -82,7 +113,7 @@ npm run start
 - `POST` 호출 직후 `GET /jobs/search?title` 요청으로 리소스가 created 되었는지 확가
 - 100명의 vu, 10초동안 0.1초 간격으로 요청
 
-1. push/save 동시 호출 (둘 다 await 처리)
+###### 1. push/save 동시 호출 (둘 다 await 처리)
 
 ```bash
  █ TOTAL RESULTS
@@ -112,23 +143,9 @@ npm run start
 
 running (0m30.1s), 000/100 VUs, 1097 complete and 0 interrupted iterations
 default ✓ [======================================] 100 VUs  30s
-➜ job-management (feature/scheduler) ✗ k6 run test/jobs-stress-test.js
-
-         /\      Grafana   /‾‾/
-    /\  /  \     |\  __   /  /
-   /  \/    \    | |/ /  /   ‾‾\
-  /          \   |   (  |  (‾)  |
- / __________ \  |_|\_\  \_____/
-
-     execution: local
-        script: test/jobs-stress-test.js
-        output: -
-
-     scenarios: (100.00%) 1 scenario, 100 max VUs, 1m0s max duration (incl. graceful stop):
-              * default: 100 looping VUs for 30s (gracefulStop: 30s)
 ```
 
-2. push만 awiat, save는 비동기 처리
+###### 2. push만 await, save는 비동기 처리
 
 ```bash
  █ TOTAL RESULTS
@@ -164,13 +181,13 @@ default ✓ [======================================] 100 VUs  30s
 - post 평균 응답속도 2초,
 
 
-| 항목 | 1.await 있음(동기) | 2.await 없음(비동기) |
+| 항목 | 1.await 있음(동기) | 2.await 없음(비동기- 개선안) |
 |---------------------|--------------------------|-------------------------|
 | POST 평균 | 2,592ms (2.6초) | 2,007ms (2.0초) |
 | POST 중앙값 | 2,664ms (2.7초) | 804ms |
 | POST 최대 | 9,946ms (9.9초) | 32,436ms (32.4초) |
 | POST 90% | 2,905ms | 1,721ms |
-| POST 95% | 3,420ms | 7,569ms |
+| POST 95% | 3,420ms | 7,569ms 안
 | GET 평균 | 46.8ms | 644ms |
 | GET 중앙값 | 35.5ms | 585ms |
 | GET 최대 | 954ms | 2,378ms |
@@ -184,12 +201,84 @@ default ✓ [======================================] 100 VUs  30s
 
 - 전반적인 응답속도 향상
 - 평균, 중앙값 향상
-- 그러나 p95가 file 병목으로 엄청 느림
+- 그러나 p95가 file I/O 병목으로 엄청 느림..
+  - 덩달아 GET도 느려짐.
 
-##### 새로운 개선안
-  POST 요청마다 하는게 아니라 10초마다 save()를 따로 호출.
-  - 데이터 유실 가능성
-  - POST 요청이 적을 때 비효율적임
+=> 새로운 개선안의 필요성을 느끼고 3번으로 개선
+
+#### 3.POST 요청마다 save()를 하는게 아니라 1초마다 따로 호출 (최종안)
+  - 데이터 유실 가능성 -> 간격을 1초로 설정하여 최소화
+  - POST 요청이 적을 때 비효율적임 -> `dirty`라는 플래그를 이용해 `dirty === true`일 때만 `save()` 호출
+
+- 성능 테스트
+
+```bash
+
+  █ TOTAL RESULTS
+
+    CUSTOM
+    get_duration............................................................: avg=16.373569 min=0.32     med=5.896    max=288.064  p(90)=46.7824  p(95)=71.19695
+    post_duration...........................................................: avg=29.670749 min=0.178    med=12.83    max=287.975  p(90)=81.1729  p(95)=111.19215
+
+    HTTP
+    http_req_duration.......................................................: avg=23.02ms   min=178µs    med=8.05ms   max=288.06ms p(90)=65.05ms  p(95)=93.54ms
+      { expected_response:true }............................................: avg=23.02ms   min=178µs    med=8.05ms   max=288.06ms p(90)=65.05ms  p(95)=93.54ms
+    http_req_failed.........................................................: 0.00%  0 out of 40976
+    http_reqs...............................................................: 40976  1357.824678/s
+
+    EXECUTION
+    iteration_duration......................................................: avg=146.83ms  min=100.62ms med=123.01ms max=520.08ms p(90)=221.92ms p(95)=253.18ms
+    iterations..............................................................: 20488  678.912339/s
+    vus.....................................................................: 100    min=100        max=100
+    vus_max.................................................................: 100    min=100        max=100
+
+    NETWORK
+    data_received...........................................................: 18 MB  592 kB/s
+    data_sent...............................................................: 6.2 MB 205 kB/s
+
+
+
+
+running (0m30.2s), 000/100 VUs, 20488 complete and 0 interrupted iterations
+default ✓ [======================================] 100 VUs  30s
+```
+
+- 총 요청 수: 40,976건 (30초간, 100 VU)
+- 평균 응답속도: 23ms (0.023초)
+- POST 평균: 29.7ms
+- POST 중앙값: 12.8ms
+- POST 최대: 288ms
+- POST 90%: 81ms
+- POST 95%: 111ms
+- GET 평균: 16.4ms
+- GET 중앙값: 5.9ms
+- GET 최대: 288ms
+- GET 90%: 46ms
+- GET 95%: 71ms
+- 실패율: 0%
+- 초당 처리량: 1,357건
+
+
+이전 결과(비동기 save, 평균 1.3초, 2,292건)와 비교
+| 항목 | 이전 결과(비동기 save) | 이번 결과(주기적 save) |
+|---------------------|-----------------------|-----------------------|
+| POST 평균 | 2,007ms (2.0초) | 29.7ms |
+| POST 중앙값 | 804ms | 12.8ms |
+| POST 최대 | 32,436ms (32.4초) | 288ms |
+| POST 90% | 1,721ms | 81ms |
+| POST 95% | 7,569ms | 111ms |
+| GET 평균 | 644ms | 16.4ms |
+| GET 중앙값 | 585ms | 5.9ms |
+| GET 최대 | 2,378ms | 288ms |
+| 전체 HTTP 평균 | 1.32초 | 23ms |
+| 전체 HTTP 최대 | 32.43초 | 288ms |
+| 전체 요청 수 | 2,292 | 40,976 |
+| 초당 처리량 | 70 | 1,357 |
+| 실패율 | 0% | 0% |
+
+- **POST, GET /jobs/search 모두 응답속도 10~100배 향상**
+- 초당 처리량 20배 증가
+- 실패율 0%
 
 
 #### 3. index hash map 사용
@@ -200,6 +289,7 @@ default ✓ [======================================] 100 VUs  30s
 - node-json-db에서 제공하는 getIndex
 
 (node-json-db의 getIndex 메서드)
+
 ```ts
 /**
  * Returns the index of the object that meets the criteria submitted. Returns -1, if no match is found.
@@ -236,24 +326,5 @@ public async getIndex(
 
 - 기능 단위로 커밋 히스토리 관리하기 위해 squash merge 사용
 
-### node-json-db 성능 테스트
-- 간단히 console.time()으로 `db.push()`와 `db.getData()` 성능 측정
-
-```bash
-=============== 10 jobs test ===============
-test 10 jobs push: 0.673ms
-test 10 jobs get: 0.014ms
-test 10 jobs append: 0.139ms
-=============== 10 jobs test end ===============
-=============== 1000000 jobs test ===============
-test 1000000 jobs push: 9.706s
-test 1000000 jobs get: 0.159ms
-test 1000000 jobs append: 4.682s
-=============== 1000000 jobs test end ===============
-```
-
-1000000개의 데이터가 있는데 job을 create하는 경우 4.682s 소요로 개선이 필요함.
-
-개선 방안
-- 샤딩
-- 데이터 저장 방식을 변경
+### package manager
+- 기본 환경으로 가정되었으므로 npm 사용

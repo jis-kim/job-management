@@ -11,6 +11,7 @@ import { JobsService } from './jobs.service';
 })
 export class JobsModule implements OnModuleDestroy {
   constructor(private readonly jobsRepository: JobsRepository) {}
+
   async onModuleDestroy() {
     await this.jobsRepository.save();
   }
