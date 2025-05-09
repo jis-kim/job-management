@@ -7,7 +7,7 @@ const getDuration = new Trend('get_duration');
 const emptyGetCount = new Counter('empty_get_count'); // 빈 배열 카운트, 0이면 리포트에 출력안됨.
 
 export const options = {
-  vus: 10, // 동시에 실행할 가상 유저 수 (원하는 만큼 조절)
+  vus: 100, // 동시에 실행할 가상 유저 수 (원하는 만큼 조절)
   duration: '30s', // 테스트 지속 시간
 };
 

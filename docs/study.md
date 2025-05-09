@@ -385,3 +385,54 @@ async createJob(createJobDto: CreateJobDto) {
 
 - 'w': Open file for writing. The file is created (if it does not exist) or truncated (if it exists).
 - 파일 쓰기 모드는 기본적으로 truncated 되므로 문제가 생겼을 때 파일이 날아가버린다..
+
+
+### @Cron과 @Interval의 차이
+
+- @Cron은 특정 시간에 실행
+- @Interval은 일정 간격으로 실행
+  - 서버가 up된 순간부터 setInterval이 실행된다.
+
+- @Cron은 초단위, @Interval은 밀리초단위
+
+
+### select + 특정 id를 빠르게
+
+- node-json-db에서 제공하는 getIndex
+
+```ts
+/**
+ * Returns the index of the object that meets the criteria submitted. Returns -1, if no match is found.
+ * @param dataPath  base dataPath from where to start searching
+ * @param searchValue value to look for in the dataPath
+ * @param propertyName name of the property to look for searchValue
+ * @returns {Promise<number>}
+ */
+public async getIndex(
+    dataPath: string,
+    searchValue: string | number,
+    propertyName: string = 'id'
+): Promise<number> {
+    const data = await this.getArrayData(dataPath)
+    return data
+        .map(function (element: any) {
+            return element[propertyName]
+        })
+        .indexOf(searchValue)
+}
+```
+
+- 참고 : [node-json-db/JsonDB.ts](https://github.com/Belphemur/node-json-db/blob/master/src/JsonDB.ts#L403)
+
+
+- array data를 map으로 돎녀서 index를 찾으므로 찾는 시간이 배열의 길이에 비례함 (O(n))
+- 따라서 배열의 길이가 길어질수록 찾는 시간이 오래 걸림
+
+#### 개선안 - index hash map 사용
+- js에서 제공하는 collection의 Map을 사용하여 조회를 O(1)로 만들 수 있음
+- `Map<id: string, index: number>` 형식의 hash map을 만들어서 조회
+
+
+### Lock?
+- Redis같은 외부 시스템을 활용한 분산 락을 걸 수 있음.
+- 멀티 프로세스나 스레드 환경에서는 필요함.
