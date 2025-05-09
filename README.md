@@ -4,16 +4,19 @@
 ## 프로젝트 실행
 
 - node v20 이상이 필요합니다. (nest v11 요구사항)
-- 프로젝트 루트에서 아래 명령어로 실행
+- 프로젝트 루트에서 아래 명령어로 실행합니다.
 
 ```bash
 npm install
-# npm run build (필요 시 실행)
+# npm run seed # 필요한 경우, 1000개의 데이터가 생성됩니다. length 조절로 원하는 길이의 job을 생성할 수 있습니다.
 npm run build
-node dist/main.js
+node dist/main.js #혹은 npm run start
 ```
 
 ## API 명세
+
+- swagger 문서는 `http://localhost:3000/api`에서 확인하실 수 있습니다.
+
 
 ### POST /jobs
 
@@ -26,12 +29,15 @@ curl -X POST 'http://localhost:3000/jobs' -H 'Content-Type: application/json' -d
 #### Request
 ```json
 {
-  "title": "string",
-  "description": "string"
+  "title": "string", // 100자 이하
+  "description": "string" // 1000자 이하
 }
 ```
 
 #### Response (생성된 Job)
+
+- 생성된 작업을 반환합니다.
+- 생성된 작업의 id는 uuid 형식입니다.
 
 ```json
 {
@@ -49,9 +55,47 @@ curl -X POST 'http://localhost:3000/jobs' -H 'Content-Type: application/json' -d
 - 모든 작업을 조회합니다.
 - pagination을 지원합니다. (offset 기반)
 
+#### Request
+
+```bash
+curl -X GET 'http://localhost:3000/jobs?offset=0&limit=10&sort=createdAt&order=desc'
+```
+##### Query Parameter
+
+- offset: 조회할 첫 번째 작업의 인덱스 (default: 0)
+- limit: 조회할 작업의 수 (default: 10)
+- sort: 정렬 기준 (createdAt, updatedAt) (기본값 없음)
+- order: 정렬 순서 (asc, desc) (default: desc)
+
+- sort가 제공되지 않으면 정렬하지 않고 반환합니다.
+
+#### Response
+
+```json
+{
+  "jobs": [
+    {
+      "id": "string",
+      "title": "string",
+      "description": "string",
+      "status": "pending",
+      "createdAt": "2025-05-05T00:00:00.000Z",
+      "updatedAt": "2025-05-05T00:00:00.000Z"
+    },
+  ],
+}
+```
+
+- meta 정보도 고려하였으나 요구사항이 "jobs 객체 리스트"로 명확했으므로 포함하지 않았습니다.
+  - total, 현재 페이지 등
+
+
+
+
 ### GET /jobs/:id
 
 - id값으로 특정 작업을 조회합니다.
+- id가 uuid형식이 아니면 400(Bad Request)오류를 반환합니다.
 
 #### Request
 
@@ -74,26 +118,61 @@ curl -X GET 'http://localhost:3000/jobs/${uuid형식의 id}'
 
 
 
-
-
-
 ### GET /jobs/search
 
 - 작업을 검색합니다.
 - Query Parameter로 검색 조건을 지정할 수 있습니다.
   - "title": job의 제목
   - "status": job의 상태 (pending, processing, completed, failed)
+- title, status 모두 제공되면 둘 다 만족하는 작업을 반환합니다.
+- 하나만 제공되면 해당 조건을 만족하는 작업을 반환합니다.
+- 둘 다 제공되지 않으면 모든 작업을 반환합니다.
+- 페이지네이션을 지원합니다.
+
+#### Request
+
+```bash
+curl -X GET 'http://localhost:3000/jobs/search?title=string&status=pending&offset=0&limit=10&sort=createdAt&order=desc'
+```
+
+##### Query Parameter
+
+- title: 작업의 제목
+- status: 작업의 상태 (pending, processing, completed, failed)
+- offset: 조회할 첫 번째 작업의 인덱스 (default: 0)
+- limit: 조회할 작업의 수 (default: 10)
+- sort: 정렬 기준 (createdAt, updatedAt) (기본값 없음)
+- order: 정렬 순서 (asc, desc) (default: desc)
+
+- sort가 제공되지 않으면 정렬하지 않고 반환합니다.
+
+#### Response
+
+```json
+{
+  "jobs": [
+    {
+      "id": "string",
+      "title": "string",
+      "description": "string",
+      "status": "pending",
+      "createdAt": "2025-05-05T00:00:00.000Z",
+      "updatedAt": "2025-05-05T00:00:00.000Z"
+    }
+  ]
+}
+
 
 ## 구현 세부사항
 
 ### 1. node-json-db 에 특화된 exception filter
 
 - `DataError`, `DataBaseError`를 처리하는 `src/common/filter/json-db-exception.filter.ts` 파일의 `JsonDBExceptionFilter` 클래스
-- cause, inner등의 정보를 추가 로깅 후 500 response 반환
+  - cause, inner등의 정보를 추가 로깅 후 500 response 반환
 
 - 모든 exception catch하는 `src/common/filter/all-exception.filter.ts` 파일의 `AllExceptionFilter` 클래스
-- 4xx일 경우 에러 원인 반환
-- 5xx일 경우 에러 원인 로깅 후 메세지로는 'Internal Server Error' 반환해서 클라이언트에서는 세부 원인을 알 수 없도록 함.
+  - 4xx일 경우 에러 원인 반환
+  - 5xx일 경우 에러 원인 로깅 후 메세지로는 'Internal Server Error' 반환해서 클라이언트에서는 세부 원인을 알 수 없도록 함.
 
 ### 2. node-json-db 성능 개선
 
@@ -103,6 +182,7 @@ curl -X GET 'http://localhost:3000/jobs/${uuid형식의 id}'
 - `JobsRepository` (`src/jobs/jobs.repository.ts`)의 constructor에서 `load()`를 미리 호출해 GET API가 처음 호출될 때의 지연을 방지
 
 #### 2. create, update 시 push/save 다른 시점에 호출
+
 - `node-json-db`의 `saveOnPush` 옵션을 false로 지정.
 - `POST /jobs` 요청 시 node-json-db의 `push` 메서드 호출은 `await` 처리
   - `save`메서드는 `await` 없이 호출하여 비동기 처리
@@ -365,7 +445,6 @@ public async getIndex(
 
 - constructor에서 index map 초기화 (`buildIndexMap`)
 - `push` 메서드에서 index map 업데이트
-- `get` 메서드에서 index map 사용
 
 
 ## 기타

@@ -11,8 +11,8 @@ export const jobFactory: (interval: number) => Job = (interval) => {
     id: v4(),
     title: faker.lorem.sentence(),
     description: faker.lorem.paragraph(),
-    //status: faker.helpers.arrayElement(Object.values(JobStatus)),
-    status: JobStatus.PENDING,
+    status: faker.helpers.arrayElement(Object.values(JobStatus)),
+    //status: JobStatus.PENDING,
     createdAt,
     updatedAt: createdAt,
   };
@@ -20,7 +20,7 @@ export const jobFactory: (interval: number) => Job = (interval) => {
 
 const seed = async () => {
   const jobsRepository = new JobsRepository('jobs.json');
-  await jobsRepository.pushMany(Array.from({ length: 100000 }, (_, index) => jobFactory(index)));
+  await jobsRepository.pushMany(Array.from({ length: process.argv[2] ? parseInt(process.argv[2]) : 1000 }, (_, index) => jobFactory(index)));
   await jobsRepository.save();
 };
 
