@@ -1,14 +1,15 @@
 import { JobStatus } from '@/entity/job.entity';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { IsEnum, IsOptional, IsString, Length } from 'class-validator';
-
-export class JobSearchQueryDto {
+import { PaginationQueryDto } from './pagination-query.dto';
+export class JobSearchQueryDto extends PaginationQueryDto {
   @ApiProperty({
     description: 'job status',
     required: false,
   })
-  @IsString()
   @IsOptional()
+  @Type(() => String)
   @IsEnum(JobStatus)
   status?: JobStatus;
 

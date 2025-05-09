@@ -3,6 +3,7 @@ import { Body, Controller, Get, HttpStatus, Param, ParseUUIDPipe, Post, Query } 
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateJobDto } from './dto/create-job.dto';
 import { JobSearchQueryDto } from './dto/job-search-query.dto';
+import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { JobsService } from './jobs.service';
 
 @ApiTags('Jobs')
@@ -17,8 +18,8 @@ export class JobsController {
     description: 'job 목록 조회 성공',
     type: [Job],
   })
-  async getAllJobs(): Promise<Job[]> {
-    return this.jobsService.getAllJobs();
+  async getAllJobs(@Query() pagination: PaginationQueryDto): Promise<Job[]> {
+    return this.jobsService.getAllJobs(pagination);
   }
 
   @Post()
@@ -40,8 +41,8 @@ export class JobsController {
     description: 'job 검색 성공',
     type: [Job],
   })
-  async searchJob(@Query() query: JobSearchQueryDto): Promise<Job[] | undefined> {
-    return this.jobsService.searchJob(query);
+  async searchJob(@Query() search: JobSearchQueryDto): Promise<Job[]> {
+    return this.jobsService.searchJob(search);
   }
 
   /**

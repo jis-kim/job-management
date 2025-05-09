@@ -3,21 +3,24 @@ import { v4 } from 'uuid';
 import { Job, JobStatus } from '../src/entity/job.entity';
 import { JobsRepository } from '../src/jobs/jobs.repository';
 
-export const jobFactory: () => Job = () => {
+const recent = faker.date.recent();
+
+export const jobFactory: (interval: number) => Job = (interval) => {
+  const createdAt = new Date(recent.getTime() + interval * 1000);
   return {
     id: v4(),
     title: faker.lorem.sentence(),
     description: faker.lorem.paragraph(),
     //status: faker.helpers.arrayElement(Object.values(JobStatus)),
     status: JobStatus.PENDING,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt,
+    updatedAt: createdAt,
   };
 };
 
 const seed = async () => {
   const jobsRepository = new JobsRepository('jobs.json');
-  await jobsRepository.pushMany(Array.from({ length: 100000 }, jobFactory));
+  await jobsRepository.pushMany(Array.from({ length: 100000 }, (_, index) => jobFactory(index)));
   await jobsRepository.save();
 };
 

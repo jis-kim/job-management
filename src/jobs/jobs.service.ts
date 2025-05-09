@@ -7,14 +7,26 @@ import { Job, JobStatus } from '@/entity/job.entity';
 import { CreateJobDto } from '@/jobs/dto/create-job.dto';
 import { JobSearchQueryDto } from '@/jobs/dto/job-search-query.dto';
 import { JobsRepository } from '@/jobs/jobs.repository';
+import { PaginationQueryDto } from './dto/pagination-query.dto';
 
 @Injectable()
 export class JobsService {
   constructor(private readonly jobsRepository: JobsRepository) {}
   private readonly logger = new Logger(JobsService.name);
 
-  async getAllJobs(): Promise<Job[]> {
-    return this.jobsRepository.findAll();
+  async getAllJobs(pagination: PaginationQueryDto): Promise<Job[]> {
+    const { offset, limit, sort, order } = pagination; // default
+    let jobs: Job[] = await this.jobsRepository.findAll();
+
+    if (sort) {
+      // sort query exists
+      jobs = jobs.sort((a, b) => {
+        const aTime = a[sort].getTime();
+        const bTime = b[sort].getTime();
+        return order === 'asc' ? aTime - bTime : bTime - aTime;
+      });
+    }
+    return jobs.slice(offset, offset + limit);
   }
 
   async getJobDetail(id: string): Promise<Job> {
@@ -39,20 +51,29 @@ export class JobsService {
     return job;
   }
 
-  async searchJob(query: JobSearchQueryDto): Promise<Job[]> {
-    const { status, title } = query;
-
-    // status가 있으면 status로
-    // title이 있으면 title로
-    // 둘 다 있으면 status와 title로
+  async searchJob(search: JobSearchQueryDto): Promise<Job[]> {
+    const { offset, limit, sort, order, status, title } = search; // default
+    let jobs: Job[] = [];
 
     if (status) {
-      return this.jobsRepository.filter('status', status);
+      jobs = await this.jobsRepository.filter('status', status);
+      if (title) {
+        jobs = jobs.filter((job) => job.title.includes(title));
+      }
     }
     if (title) {
-      return this.jobsRepository.filter('title', title);
+      jobs = await this.jobsRepository.filter('title', title);
     }
-    return [];
+
+    if (sort) {
+      jobs = jobs.sort((a, b) => {
+        const aTime = a[sort].getTime();
+        const bTime = b[sort].getTime();
+        return order === 'asc' ? aTime - bTime : bTime - aTime;
+      });
+    }
+
+    return jobs.slice(offset, offset + limit);
   }
 
   @Cron(CronExpression.EVERY_MINUTE, {
