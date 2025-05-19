@@ -396,7 +396,7 @@ default ✓ [======================================] 100 VUs  30s
 running (0m30.2s), 000/100 VUs, 18965 complete and 0 interrupted iterations
 default ✓ [======================================] 100 VUs  30s
 ```
-- 빠른 성능, 낮을 실패율.
+- 빠른 성능, 낮은 실패율.
 
 
 ##### 문제점
@@ -455,3 +455,78 @@ public async getIndex(
 
 ### package manager
 - 기본 환경으로 가정되었으므로 npm 사용
+
+### 동시성 처리
+- 다중 POST, POST 직후의 GET 요청 등은 node-json-db의 동시성 처리 기능 테스트 및 k6를 활용한 실제 성능 테스트로 데이터 유실이 없음을 확인.
+- 다중 POST: 데이터 오류 없이 정상데이터가 저장됨.
+- POST 직후의 GET 요청: 데이터 오류 없이 정상데이터가 조회됨.
+
+
+<details>
+<summary>node-json-db의 테스트 코드</summary>
+
+[github-node-json-db 동시성 처리 테스트](https://github.com/Belphemur/node-json-db/blob/master/test/06-concurrency.test.ts)
+
+```ts
+describe('Multi push', () => {
+        test('should not corrupt the data', async () => {
+            const db = new JsonDB(new Config('test-concurrent-write'));
+            db.resetData({});
+            let promiseList = [];
+            for (let i = 0; i < 10; i++) {
+                // NOTE: pushing the promise without awaiting for it!
+                promiseList.push(addData(db) as never);
+            }
+
+            // Represent multiple async contexts, all running concurrently
+            await Promise.all(promiseList);
+
+            const result = await db.getData("/");
+            expect(result).toHaveProperty('record');
+            for (let i = 0; i < 10; i++) {
+                expect(result.record).toHaveProperty(`key${i}`)
+                expect(result.record[`key${i}`].strval).toBe(`value ${i}`);
+                expect(result.record[`key${i}`].intval).toBe(i);
+            }
+            expect(counter).toBe(10)
+        })
+
+    });
+
+describe('Multi getData', () => {
+    test('should be blocking and wait for push to finish', async () => {
+        const db = new JsonDB(new Config('test-concurrent-read'));
+        let counter = 1;
+        let record = {
+            strval: `value ${counter}`,
+            intval: counter
+        };
+        //We don't await the promise directly, to trigger a concurrent case
+        const pushPromise = db.push(`/test/key${counter}`, record, false);
+        const data = await db.getData("/test")
+
+        await pushPromise;
+
+        expect(data).toHaveProperty(`key${counter}`)
+        expect(data[`key${counter}`]).toEqual(record);
+    });
+});
+```
+
+</details>
+
+- rwlock을 내부적으로 사용 중.
+  - write 중 일 때 read, write 접근 불가능.
+  - read 중 일 때는 다른 read 접근 가능, write 접근 불가능.
+
+### 아쉬운 점?
+- 너무 많은 요청이 일어나면 in-memory 데이터의 크기가 커지고, GC가 제대로 안되어서 OOM이 발생함(4GB)
+   - late limiter를 적용하는 방법 등 (nestjs/throttler)
+- 데이터 유실을 좀 더 적극적으로 막을 수 없을까?
+  - node-json-db가 내부에서 `fs.open()` 사용해서 truncate 되는 것이 기본 옵션임.
+  - write 하다 실패하면 그대로 파일 데이터 죄다 손실
+  - 백업 파일의 생성 등으로 막을 수 있을까?
+    - 이것도 write lock 문제 때문에 동일 프로세스에서 진행해야 될 것으로 예상됨.
+- GET API들의 caching
+  - index hash map을 적용하는 것으로 속도가 많이 빨라졌고.. 부하 테스트 하느라 시간이 많이 흘러서 적용하지는 못했음.
+  - 어느 API에 어떤 기준으로 적용할지, 어떻게 적용시킬지 불분명함.

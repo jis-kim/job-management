@@ -1,5 +1,3 @@
-// test exception filter
-
 import { ArgumentsHost } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataError, DatabaseError } from 'node-json-db';

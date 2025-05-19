@@ -89,13 +89,14 @@ export class JobsService {
     const allStart = Date.now();
 
     for (const chunk of jobChunks) {
+      // Promise.allSettled를 사용하여 개별 실패와 관련없이 모든 job 업데이트시도
       const result = await Promise.allSettled(
         chunk.map(async (job) => {
           const start = Date.now();
           const { id } = job;
           try {
             //await this.jobsRepository.update(id, { ...job, status: JobStatus.PROCESSING });
-            // something processing
+            // something processing - 지금은 따로 과정이 없어 바로 완료 처리함.
             await this.jobsRepository.update(id, { ...job, status: JobStatus.COMPLETED, updatedAt: new Date() });
           } catch (error) {
             this.logger.error(`Job ${id} failed to update status to processing: ${error} +${Date.now() - start}ms`);
