@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, Min } from 'class-validator';
+
+export type Sort = 'createdAt' | 'updatedAt';
+export type Order = 'asc' | 'desc';
+
 export class PaginationQueryDto {
   @ApiProperty({
     description: '페이지 번호',
@@ -35,7 +39,7 @@ export class PaginationQueryDto {
   })
   @IsOptional()
   @IsIn(['createdAt', 'updatedAt'])
-  sort?: 'createdAt' | 'updatedAt';
+  sort?: Sort;
 
   @ApiProperty({
     description: '정렬 방향',
@@ -46,5 +50,5 @@ export class PaginationQueryDto {
   })
   @IsOptional()
   @IsIn(['asc', 'desc'])
-  order: 'asc' | 'desc' = 'desc';
+  order: Order = 'desc';
 }

@@ -7,7 +7,7 @@ import { Job, JobStatus } from '@/entity/job.entity';
 import { CreateJobDto } from '@/jobs/dto/create-job.dto';
 import { JobSearchQueryDto } from '@/jobs/dto/job-search-query.dto';
 import { JobsRepository } from '@/jobs/jobs.repository';
-import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { Order, PaginationQueryDto, Sort } from './dto/pagination-query.dto';
 
 @Injectable()
 export class JobsService {
@@ -19,12 +19,7 @@ export class JobsService {
     let jobs: Job[] = await this.jobsRepository.findAll();
 
     if (sort) {
-      // sort query exists
-      jobs = jobs.sort((a, b) => {
-        const aTime = a[sort].getTime();
-        const bTime = b[sort].getTime();
-        return order === 'asc' ? aTime - bTime : bTime - aTime;
-      });
+      jobs = this.sortJobsByDate(jobs, sort, order);
     }
     return jobs.slice(offset, offset + limit);
   }
@@ -53,24 +48,18 @@ export class JobsService {
 
   async searchJob(search: JobSearchQueryDto): Promise<Job[]> {
     const { offset, limit, sort, order, status, title } = search; // default
-    let jobs: Job[] = [];
+    let jobs: Job[] = await this.jobsRepository.findAll();
 
-    if (status) {
-      jobs = await this.jobsRepository.filter('status', status);
-      if (title) {
-        jobs = jobs.filter((job) => job.title.includes(title));
-      }
-    }
-    if (title) {
-      jobs = await this.jobsRepository.filter('title', title);
+    if (status && title) {
+      jobs = jobs.filter((job) => job.status === status && job.title.includes(title));
+    } else if (status) {
+      jobs = jobs.filter((job) => job.status === status);
+    } else if (title) {
+      jobs = jobs.filter((job) => job.title.includes(title));
     }
 
     if (sort) {
-      jobs = jobs.sort((a, b) => {
-        const aTime = a[sort].getTime();
-        const bTime = b[sort].getTime();
-        return order === 'asc' ? aTime - bTime : bTime - aTime;
-      });
+      jobs = this.sortJobsByDate(jobs, sort, order);
     }
 
     return jobs.slice(offset, offset + limit);
@@ -82,7 +71,7 @@ export class JobsService {
   })
   async updatePendingJobs() {
     // status가 pending인 job 조회
-    const pendingJobs = await this.jobsRepository.filter('status', 'pending');
+    const pendingJobs = await this.jobsRepository.filter('status', JobStatus.PENDING);
 
     const batchSize = 100;
     const jobChunks = chunkArray(pendingJobs, batchSize);
@@ -120,5 +109,21 @@ export class JobsService {
     if (result) {
       this.logger.log('Jobs saved');
     }
+  }
+
+  /**
+   * 정렬 기준은 createdAt, updatedAt 두 가지 밖에 없음.
+   *
+   * @param jobs 정렬할 데이터
+   * @param sort 정렬 기준 (createdAt, updatedAt)
+   * @param order 정렬 방향 (asc, desc)
+   * @returns 정렬된 데이터
+   */
+  private sortJobsByDate(jobs: Job[], sort: Sort, order: Order) {
+    return jobs.sort((a, b) => {
+      const aTime = a[sort].getTime();
+      const bTime = b[sort].getTime();
+      return order === 'asc' ? aTime - bTime : bTime - aTime;
+    });
   }
 }

@@ -522,6 +522,8 @@ describe('Multi getData', () => {
 ### 아쉬운 점?
 - 너무 많은 요청이 일어나면 in-memory 데이터의 크기가 커지고, GC가 제대로 안되어서 OOM이 발생함(4GB)
    - late limiter를 적용하는 방법 등 (nestjs/throttler)
+   - 근본 해결이 아님.. 데이터 쌓이면 그냥 메모리에 부담이 커짐. (파일 4기가되면 그대로 뻥)
+   - 다른 DB를 사용하는 게 어떨까..
 - 데이터 유실을 좀 더 적극적으로 막을 수 없을까?
   - node-json-db가 내부에서 `fs.open()` 사용해서 truncate 되는 것이 기본 옵션임.
   - write 하다 실패하면 그대로 파일 데이터 죄다 손실
